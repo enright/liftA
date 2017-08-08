@@ -1,0 +1,26 @@
+{
+  "name": "lifta",
+  "version": "0.0.1",
+  "description": "Asynchronous event arrows for JavaScript",
+  "main": "liftA.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/enright/liftA.git"
+  },
+  "keywords": [
+    "function",
+    "arrows",
+    "monads",
+    "asynchronous",
+    "event"
+  ],
+  "author": "Bill Enright",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/enright/liftA/issues"
+  },
+  "homepage": "https://github.com/enright/liftA#readme"
+}
