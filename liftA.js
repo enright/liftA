@@ -115,8 +115,6 @@ let liftArrow = (f) => (x, cont, p) => {
     return cancelId;
   };
 
-let returnArrow = liftArrow((x) => x);
-
 // f and g are arrows
 let thenArrow = (f, g) => (x, cont, p) => {
     let c1, c2, cancelId;
@@ -216,6 +214,8 @@ function repeatArrow(f) {
   // run f, continuing with the repeater
   return thenArrow(f, repeater);
 }
+
+let returnArrow = liftArrow((x) => x);
 
 // bind :: AsyncA a b -> AsyncA (a, b) c -> AsyncA a c
 let bindArrow = (f, g) => returnArrow.fanA(f).thenA(g);
