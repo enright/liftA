@@ -1,71 +1,28 @@
-/*
-MIT License
-
-Copyright (c) 2017 Bill Enright
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-/*
-The Point of No Return
-
-This is the liftA.js library by Bill Enright. It is an implementation of
-'asynchronous event arrows' It is a library of function arrows for
-high-order functional programming of asynchronous and event-driven work
-in JavaScript. This work is an adaptation of the "Arrowlets" library by
-Khoo Yit Phang. It attempts to offer a simplified view of arrows so that
-you may build on it without being confined by the original style. This
-library has fewer features in order to be less opinionated.
-
-With the advent of ES6 implementations that support tail call
-optimization (such as the V8 engine) there is no longer a need to use a
-trampoline and thunking to achieve continuations, and this greatly
-simplifies the implementation of asynchronous event arrows in
-JavaScript. Also, the expressiveness of 'arrow function' syntax in ES6
-makes the code defining arrows much more readable.
-
-Arrows can be contructed from a variety of included functions, such as
-liftA(), thenA(), firstA(), secondA(), productA()
-and fanA(). For a visual description of these arrows see arr, >>>,
-first, second, *** and &&& here:
-https://en.wikibooks.org/wiki/Haskell/Understanding_arrows
-
-orA() executes only one of its arrow arguments (the first to complete - the
-other is cancelled). repeatA() allows for looping. bindA() and
-joinA() allow you to keep previous results in the data flowing
-through the arrows. They are similar to thenA(), but they combine
-output variations in a pair.
-
-This library augments Array with a first() and second() function to
-support simple semantics for handling tuples. Generally, we assume that
-the 'x' - the first parameter when calling a function arrow - is a pair.
-firstA() and secondA() construct arrows that operate on one of
-the pair, and pass the value of the other of the pair through.
-
-This library also augments Function with a number of useful functions
-for building more complex arrows with a fluent syntax. Hence the name of
-this library: liftA
-
-A rudimentary mechanism for cancelling arrows is provided.
-
-To Be Continued...
-*/
-
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body>
+    <style type="text/css">
+        #container {
+            position:relative;
+            font-family: sans-serif;
+            font-size: 400%;
+            text-align: center;
+            color: lightcyan;
+            background: cyan;
+            padding: 1em 0;
+        }
+        #container span.letter {
+            position: absolute;
+            font-size: 25%;
+            color: black;
+            background: transparent;
+        }
+    </style>
+<div id="container" >Move your mouse in here.
+</div>
+<script>
 let p = (function () {
   let c = {
     counter: 0,
@@ -171,7 +128,7 @@ let orA = (f, g) => (x, cont, p) => {
         p.cancel(c2);
         cont(x, p);
       }
-    }, p);
+    });
     c2 = g(x, (x) => {
       if (!done) {
         done = true;
@@ -180,7 +137,7 @@ let orA = (f, g) => (x, cont, p) => {
         p.cancel(c1);
         cont(x, p);
       }
-    }, p);
+    });
     cancelId = p.add(() => {
       p.cancel(c1);
       p.cancel(c2);
@@ -195,32 +152,18 @@ let firstA = (f) => productA(f, (x, cont, p) => cont(x, p));
 
 let secondA = (g) => productA((x, cont, p) => cont(x, p), g);
 
-function Repeat(x) {
-  if (this instanceof Repeat) {
-    this.x = x;
-  } else {
-    return new Repeat(x);
-  }
-}
-
-function Done(x) {
-  if (this instanceof Done) {
-    this.x = x;
-  } else {
-    return new Done(x);
-  }
-}
+function ArrRepeat() { }
+function ArrDone() { }
 
 function repeatA(f) {
   function repeater(x, cont, p) {
-    let first = x.first(),
-      second = x.second();
-    if (second instanceof Repeat) {
+    let second = x.second();
+    if (second === ArrRepeat) {
         // the repeater will, when Repeating,
         // run f, continuing with the repeater
-        f([first, second.x], (x) => repeater(x, cont, p), p);
-    } else if (second instanceof Done) {
-        cont([first, second.x], p);
+        f(x, (x) => repeater(x, cont, p), p);
+    } else if (second === ArrDone) {
+        cont(x, p);
     } else {
         throw new TypeError("Repeat or Done?");
     }
@@ -249,64 +192,18 @@ let delayA = (ms) => (x, cont, p) => {
 };
 
 let justRepeatA = (x, cont, p) => {
-  cont([undefined, ArrRepeat(x)]);
+  cont([undefined, aea.ArrRepeat]);
 }
 
 let justDoneA = (x, cont, p) => {
-  cont([undefined, ArrDone(x)]);
+  cont([undefined, aea.ArrDone]);
 }
 
 let constA = (value) => (x, cont, p) => {
   cont(value, p);
 };
 
-function Left(x) {
-  if (this instanceof Left) {
-    this.x = x;
-  } else {
-    return new Left(x);
-  }
-};
-
-function Right(x) {
-  if (this instanceof Right) {
-    this.x = x;
-  } else {
-    return new Right(x);
-  }
-};
-
-function Error (x) {
-  if (this instanceof Error) {
-    this.error = x;
-  } else {
-    return new Error(x);
-  }
-}
-
-let ifteA = (lorA, leftA, rightA) => (x, cont, p) => {
-  let c1, c2, cancelId;
-  let leftOrRight = (x, p) => {
-    let first = x.first();
-    if (first instanceof Left) {
-      c2 = leftA(first.x, cont, p);
-    } else if (first instanceof Right){
-      c2 = rightA(first.x, cont, p);
-    } else {
-      throw new TypeError("Left or Right?");
-    }
-  }
-  c1 = lorA(x, leftOrRight, p);
-  cancelId = p.add(() => {
-    p.cancel(c);
-    if (c2) {
-      p.cancel(c2)
-    }
-  });
-  return cancelId;
-}
-
-module.exports = () => {
+aea = () => {
 
 	// augment Array with access to first and second of tuple
 	if (!Array.prototype.first) {
@@ -364,16 +261,80 @@ module.exports = () => {
 		joinA: joinA,
 		repeatA: repeatA,
 		delayA: delayA,
-		Repeat: Repeat,
-		Done: Done,
+		ArrRepeat: ArrRepeat,
+		ArrDone: ArrDone,
 		justRepeatA: justRepeatA,
 		justDoneA: justDoneA,
 		constA: constA,
-    Left: Left,
-    Right: Right,
-    Error: Error,
-    ifteA: ifteA,
 		p: p
 	};
 
 }
+
+aea = aea();
+
+let eventA = (eventName) => (x, cont, p) => {
+  let element = x.second().element,
+    cancelId,
+    listener,
+    remove = () => element.removeEventListener(eventName, listener);
+  listener = (e) => {
+    p.advance(cancelId);
+    remove();
+    cont([e, x.second()], p);
+  };
+  element.addEventListener(eventName, listener);
+  cancelId = p.add(remove);
+  return cancelId;
+};
+
+var text = "Tempus fugit like an Arrowlet";
+var container = document.getElementById("container");
+var chars = [];
+for (var i = 0; i < text.length; i++) {
+    var s = document.createElement("span");
+    s.className = "letter";
+    s.innerHTML = text.charAt(i);
+    container.appendChild(s);
+    chars.push(s);
+}
+
+function calc_offset(evt, container) {
+    var top = evt.offsetY;
+    var left = evt.offsetX;
+    for(var target = evt.target; target != container; target = target.offsetParent) {
+        top += target.offsetTop;
+        left += target.offsetLeft;
+    }
+    return { top: top, left: left };
+}
+
+function move_string(x) {
+    let evt = x.first(),
+      { speed, element } = x.second();
+    let positionRepeat = (x) => {
+        let { i, loc, offset, chars } = x.first(),
+          s = chars[i];
+        s.style.top = offset.top + "px";
+        s.style.left = offset.left + loc + "px";
+        i += 1;
+        loc += s.clientWidth;
+        return (i < chars.length)
+          ? [{ i, loc, offset, chars }, aea.ArrRepeat]
+          : [undefined, aea.ArrDone];
+    };
+    aea.delayA(speed)
+      .thenA(positionRepeat.liftA())
+      .repeatA()
+      .runA([{ i: 0, loc: 15, offset: calc_offset(evt, element), chars }, undefined]);
+}
+
+aea.constA([undefined, { element: container, speed: 100, chars }])
+  .thenA(eventA("mousemove"))
+  .thenA(move_string.liftA())
+  .thenA(aea.justRepeatA)
+  .repeatA()
+  .runA();
+
+</script>
+</body
