@@ -1,6 +1,6 @@
 {
   "name": "lifta",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Asynchronous event arrows for JavaScript",
   "main": "liftA.js",
   "scripts": {
