@@ -1,8 +1,11 @@
 {
   "name": "lifta",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Asynchronous event arrows for JavaScript",
   "main": "liftA.js",
+  "jshintConfig": {
+    "esversion": 6
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

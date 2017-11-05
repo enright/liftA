@@ -103,18 +103,27 @@ let p = (function () {
   };
 }());
 
+// cancellable asynchronous lift
 // f is a 'normal' function taking x
-let liftA = (f) => (x, cont, p) => {
+// make it behave asynchronously with setTimeout 0
+let liftAsyncA = (f) => (x, cont, p) => {
     let cancelId,
       clear = setTimeout(() => {
       	let result = f(x);
-        p.advance(cancelId)
+        p.advance(cancelId);
         cont(result, p);
       }, 0);
     cancelId = p.add(() => clearTimeout(clear));
     return cancelId;
   };
 
+// simple lift
+// f is a synchronous function taking x
+let liftA = (f) => (x, cont, p) => {
+    cont(f(x), p);
+  };
+
+// cancellable then
 // f and g are arrows
 let thenA = (f, g) => (x, cont, p) => {
     let c1, c2, cancelId;
@@ -126,8 +135,8 @@ let thenA = (f, g) => (x, cont, p) => {
       }, p);
     }, p);
     cancelId = p.add(() => {
-      c1 && p.cancel(c1);
-      c2 && p.cancel(c2);
+      if (c1) { p.cancel(c1); }
+      if (c2) { p.cancel(c2); }
     });
     return cancelId;
   };
@@ -250,11 +259,11 @@ let delayA = (ms) => (x, cont, p) => {
 
 let justRepeatA = (x, cont, p) => {
   cont([undefined, ArrRepeat(x)]);
-}
+};
 
 let justDoneA = (x, cont, p) => {
   cont([undefined, ArrDone(x)]);
-}
+};
 
 let constA = (value) => (x, cont, p) => {
   cont(value, p);
@@ -266,7 +275,7 @@ function Left(x) {
   } else {
     return new Left(x);
   }
-};
+}
 
 function Right(x) {
   if (this instanceof Right) {
@@ -274,17 +283,18 @@ function Right(x) {
   } else {
     return new Right(x);
   }
-};
+}
 
-function Error (x) {
+function Error (error, x) {
   if (this instanceof Error) {
-    this.error = x;
+    this.error = error;
+    this.x = x;
   } else {
-    return new Error(x);
+    return new Error(error, x);
   }
 }
 
-let ifteA = (lorA, leftA, rightA) => (x, cont, p) => {
+let leftOrRightA = (lorA, leftA, rightA) => (x, cont, p) => {
   let c1, c2, cancelId;
   let leftOrRight = (x, p) => {
     let first = x.first();
@@ -295,16 +305,16 @@ let ifteA = (lorA, leftA, rightA) => (x, cont, p) => {
     } else {
       throw new TypeError("Left or Right?");
     }
-  }
+  };
   c1 = lorA(x, leftOrRight, p);
   cancelId = p.add(() => {
     p.cancel(c);
     if (c2) {
-      p.cancel(c2)
+      p.cancel(c2);
     }
   });
   return cancelId;
-}
+};
 
 module.exports = () => {
 
@@ -317,6 +327,9 @@ module.exports = () => {
 	}
 
 	// Augment Function with fluent arrow syntax
+	if (!Function.prototype.liftAsyncA) {
+		Function.prototype.liftAsyncA = function () { return liftAsyncA(this); };
+	};
 	if (!Function.prototype.liftA) {
 		Function.prototype.liftA = function () { return liftA(this); };
 	};
@@ -352,6 +365,7 @@ module.exports = () => {
 	};
 
 	return {
+		liftAsyncA: liftAsyncA,
 		liftA: liftA,
 		returnA: returnA,
 		thenA: thenA,
@@ -372,8 +386,8 @@ module.exports = () => {
     Left: Left,
     Right: Right,
     Error: Error,
-    ifteA: ifteA,
+    leftOrRightA: leftOrRightA,
 		p: p
 	};
 
-}
+};

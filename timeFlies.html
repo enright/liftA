@@ -215,7 +215,7 @@ aea = () => {
 
 	// Augment Function with fluent arrow syntax
 	if (!Function.prototype.liftA) {
-		Function.prototype.liftA = function () { return liftA(this); };
+		Function.prototype.liftA = function () { return liftAsyncA(this); };
 	};
 	if (!Function.prototype.thenA) {
 		Function.prototype.thenA = function (g) { return thenA(this, g); };
