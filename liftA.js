@@ -299,9 +299,9 @@ let leftOrRightA = (lorA, leftA, rightA) => (x, cont, p) => {
   let leftOrRight = (x, p) => {
     let first = x.first();
     if (first instanceof Left) {
-      c2 = leftA(first.x, cont, p);
+      c2 = leftA([first.x, x.second()], cont, p);
     } else if (first instanceof Right){
-      c2 = rightA(first.x, cont, p);
+      c2 = rightA([first.x, x.second()], cont, p);
     } else {
       throw new TypeError("Left or Right?");
     }
