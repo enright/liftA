@@ -296,12 +296,11 @@ function Error (error, x) {
 
 let leftOrRightA = (lorA, leftA, rightA) => (x, cont, p) => {
   let c1, c2, cancelId;
-  let leftOrRight = (x, p) => {
-    let first = x.first();
-    if (first instanceof Left) {
-      c2 = leftA([first.x, x.second()], cont, p);
-    } else if (first instanceof Right){
-      c2 = rightA([first.x, x.second()], cont, p);
+  let leftOrRight = (lor, p) => {
+    if (lor instanceof Left) {
+      c2 = leftA(lor.x, cont, p);
+    } else if (lor instanceof Right){
+      c2 = rightA(lor.x, cont, p);
     } else {
       throw new TypeError("Left or Right?");
     }
