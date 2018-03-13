@@ -144,26 +144,35 @@ let thenA = (f, g) => (x, cont, p) => {
 // run f over x[0] and g over x[1] and continue with [f(x[0]), g(x[1])]
 let productA = (f, g) => (x, cont, p) => {
     let pair = [undefined, undefined],
+      pairSet = [false, false],
       c1, c2, cancelId;
     // run arrows. continue when both are done
     c1 = f(x.first(), (x) => {
       pair[0] = x;
-      if (pair[1] !== undefined) {
-        p.advance(cancelId);
+      pairSet[0] = true;
+      if (pairSet[1]) {
+        if (cancelId) {
+          p.advance(cancelId);
+        }
         cont(pair, p);
       }
     }, p);
     c2 = g(x.second(), (x) => {
       pair[1] = x;
-      if (pair[0] !== undefined) {
-        p.advance(cancelId);
+      pairSet[1] = true;
+      if (pairSet[0]) {
+        if (cancelId) {
+          p.advance(cancelId);
+        }
         cont(pair, p);
       }
     }, p);
-    cancelId = p.add(() => {
-      p.cancel(c1);
-      p.cancel(c2);
-    });
+    if (!(pairSet[0] && pairSet[1])) {
+      cancelId = p.add(() => {
+        p.cancel(c1);
+        p.cancel(c2);
+      });
+    }
     return cancelId;
   };
 
@@ -307,7 +316,7 @@ let leftOrRightA = (lorA, leftA, rightA) => (x, cont, p) => {
   };
   c1 = lorA(x, leftOrRight, p);
   cancelId = p.add(() => {
-    p.cancel(c);
+    p.cancel(c1);
     if (c2) {
       p.cancel(c2);
     }
@@ -336,7 +345,7 @@ module.exports = () => {
 		Function.prototype.thenA = function (g) { return thenA(this, g); };
 	};
 	if (!Function.prototype.runA) {
-		Function.prototype.runA = function (x) { return this(x, (x) => console.log ('x: ', x), p); };
+		Function.prototype.runA = function (x) { return this(x, () => {}, p); };
 	};
 	if (!Function.prototype.firstA) {
 		Function.prototype.firstA = function () { return firstA(this); };
