@@ -81,7 +81,7 @@ let liftAsyncA = (f) => (x, cont, p) => {
     clear = setTimeout(() => {
     	let result = f(x);
       p.advance(cancelId);
-      cont(result, p);
+      return cont(result, p);
     }, 0);
   cancelId = p.add(() => clearTimeout(clear));
 };
