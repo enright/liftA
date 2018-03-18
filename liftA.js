@@ -66,7 +66,7 @@ A rudimentary mechanism for cancelling arrows is provided.
 To Be Continued...
 */
 
-let p = (function () {
+let P = () => {
   let c = {
     counter: 0,
     canceller: {}
@@ -101,7 +101,9 @@ let p = (function () {
     cancel: cancel,
     cancelAll: cancelAll
   };
-}());
+};
+
+let p = P();
 
 // cancellable asynchronous lift
 // f is a 'normal' function taking x
@@ -120,8 +122,8 @@ let liftAsyncA = (f) => (x, cont, p) => {
 // simple lift
 // f is a synchronous function taking x
 let liftA = (f) => (x, cont, p) => {
-    cont(f(x), p);
-  };
+  return cont(f(x), p);
+};
 
 // cancellable then
 // f and g are arrows
@@ -395,6 +397,7 @@ module.exports = () => {
     Right: Right,
     Error: Error,
     leftOrRightA: leftOrRightA,
+    P: P,
 		p: p
 	};
 
