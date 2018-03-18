@@ -63,10 +63,36 @@ function repeatAdd1Arrow(x, cont, p) {
     }
   }, 0);
 }
+
+// let's create a new progress
+myaea = require('./liftA')();
+let frst = myaea.firstA(myaea.liftAsyncA((x) => x + 1)).thenA(myaea.justRepeatA);
+let repeatTest = frst.repeatA();
+console.log('run repeat test');
+repeatTest([0, aea.Repeat()], () => console.log('lsdjfldskjflksdjf'), myaea.p);
+console.log('stop the repeater');
+myaea.p.cancelAll();
+
+function repeatAdd1ArrowSynch(x, cont, p) {
+  let first = x.first();
+  let doneOrRepeat;
+  if (first === 10000) {
+    doneOrRepeat = aea.Done(first);
+  } else {
+    console.log(first)
+    doneOrRepeat = aea.Repeat(first);
+  }
+  cont([first, doneOrRepeat], p);
+}
 //
-let frst = aea.firstA(aea.liftAsyncA((x) => x + 1))
-let repeatTest = aea.repeatA(aea.thenA(frst, repeatAdd1Arrow));
-repeatTest.runA([0, aea.Repeat()]);
+// let frstSynchA = aea.liftA((x) => {
+//   x.first(x.first() + 1);
+//   console.log(x.first());
+//   return [x.first(), x.first() > 10000 ? aea.Done() : aea.Repeat()];
+// });
+//
+// let repeatTestSynchA = aea.repeatA(frstSynchA);
+// repeatTestSynchA.runA([0, aea.Repeat()]);
 
 let testDelay = aea.thenA((x, cont, p) => { console.log('start delay 2000'); cont(x, p); }, aea.thenA(aea.delayA(2000), (x, cont, p) => {console.log('end delay 2000');}));
 testDelay([1,2], () => {}, aea.p);
