@@ -278,10 +278,6 @@ let justDoneA = (x, cont, p) => {
   cont([undefined, Done(x)]);
 };
 
-let constA = (value) => (x, cont, p) => {
-  cont(value, p);
-};
-
 function Left(x) {
   if (this instanceof Left) {
     this.x = x;
