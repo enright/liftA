@@ -53,23 +53,23 @@ testFirstArrow([2, "dave"], (x) => console.log('testFirstArrow: ', x), aea.p)// 
 let testSecondArrow = aea.secondA(aea.liftAsyncA((x) => x * 3))
 testSecondArrow(["suzie creamcheese", 3], (x) => console.log('testSecondArrow: ', x), aea.p)// types for looping
 //
-function repeatAdd1Arrow(x, cont, p) {
-  setTimeout(() => {
-    let first = x.first();
-    if (first === 1000) {
-      cont([first, aea.Done(first)], p);
-    } else {
-      cont([first, aea.Repeat(first)], p);
-    }
-  }, 0);
-}
-
+// function repeatAdd1Arrow(x, cont, p) {
+//   setTimeout(() => {
+//     let first = x.first();
+//     if (first === 1000) {
+//       cont([first, aea.Done(first)], p);
+//     } else {
+//       cont([first, aea.Repeat(first)], p);
+//     }
+//   }, 0);
+// }
+//
 // let's create a new progress
 myaea = require('./liftA')();
 let frst = myaea.firstA(myaea.liftAsyncA((x) => x + 1)).thenA(myaea.justRepeatA);
 let repeatTest = frst.repeatA();
 console.log('run repeat test');
-repeatTest([0, aea.Repeat()], () => console.log('lsdjfldskjflksdjf'), myaea.p);
+repeatTest([0, myaea.Repeat()], () => console.log('lsdjfldskjflksdjf'), myaea.p);
 console.log('stop the repeater');
 myaea.p.cancelAll();
 

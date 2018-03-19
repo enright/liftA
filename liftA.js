@@ -103,8 +103,6 @@ let P = () => {
   };
 };
 
-let p = P();
-
 // cancellable asynchronous lift
 // f is a 'normal' function taking x
 // make it behave asynchronously with setTimeout 0
@@ -208,12 +206,18 @@ let orA = (f, g) => (x, cont, p) => {
     return cancelId;
   };
 
+// simply deliver the current x
+let returnA = (x, cont, p) => cont(x, p);
+
+// deliver a constant instead of x
+let constA = (c) => (x, cont, p) => cont(c, p);
+
 // create an arrow to transform x into [x, x] then product of arrows f and g
 let fanA = (f, g) => thenA(liftA((x) => [x, x]), productA(f, g));
 
-let firstA = (f) => productA(f, (x, cont, p) => cont(x, p));
+let firstA = (f) => productA(f, returnA);
 
-let secondA = (g) => productA((x, cont, p) => cont(x, p), g);
+let secondA = (g) => productA(returnA, g);
 
 function Repeat(x) {
   if (this instanceof Repeat) {
@@ -248,8 +252,6 @@ function repeatA(f) {
   // run f, continuing with the repeater
   return thenA(f, repeater);
 }
-
-let returnA = liftA((x) => x);
 
 // bind :: AsyncA a b -> AsyncA (a, b) c -> AsyncA a c
 let bindA = (f, g) => returnA.fanA(f).thenA(g);
@@ -327,6 +329,7 @@ let leftOrRightA = (lorA, leftA, rightA) => (x, cont, p) => {
 };
 
 module.exports = () => {
+  let p = P();
 
 	// augment Array with access to first and second of tuple
 	if (!Array.prototype.first) {
