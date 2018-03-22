@@ -65,6 +65,7 @@ A rudimentary mechanism for cancelling arrows is provided.
 
 To Be Continued...
 */
+"use strict"; // enables proper tail calls (PTC)
 
 let P = () => {
   let c = {
@@ -114,7 +115,6 @@ let liftAsyncA = (f) => (x, cont, p) => {
         cont(result, p);
       }, 0);
     cancelId = p.add(() => clearTimeout(clear));
-    return cancelId;
   };
 
 // simple lift
@@ -123,88 +123,102 @@ let liftA = (f) => (x, cont, p) => {
   return cont(f(x), p);
 };
 
-// cancellable then
-// f and g are arrows
+// first f, then g, f and g are arrows
 let thenA = (f, g) => (x, cont, p) => {
-    let c1, c2, cancelId;
-    c1 = f(x, (x) => {
-      c1 = undefined;
-      c2 = g(x, (x) => {
-        p.advance(cancelId);
-        cont(x, p);
-      }, p);
-    }, p);
-    cancelId = p.add(() => {
-      if (c1) { p.cancel(c1); }
-      if (c2) { p.cancel(c2); }
-    });
-    return cancelId;
-  };
+  return f(x, (x) => {
+    return g(x, cont, p);
+  }, p);
+};
 
 // run f over x[0] and g over x[1] and continue with [f(x[0]), g(x[1])]
+// product assumes a pair
 let productA = (f, g) => (x, cont, p) => {
-    let pair = [undefined, undefined],
-      pairSet = [false, false],
-      c1, c2, cancelId;
-    // run arrows. continue when both are done
-    c1 = f(x.first(), (x) => {
-      pair[0] = x;
-      pairSet[0] = true;
-      if (pairSet[1]) {
-        if (cancelId) {
-          p.advance(cancelId);
-        }
-        cont(pair, p);
-      }
-    }, p);
-    c2 = g(x.second(), (x) => {
-      pair[1] = x;
-      pairSet[1] = true;
-      if (pairSet[0]) {
-        if (cancelId) {
-          p.advance(cancelId);
-        }
-        cont(pair, p);
-      }
-    }, p);
-    if (!(pairSet[0] && pairSet[1])) {
-      cancelId = p.add(() => {
-        p.cancel(c1);
-        p.cancel(c2);
-      });
+  let myP = P();
+  let cancelId = p.add(() => myP.cancelAll());
+  let fCompleted = false, gCompleted = false, fx, gx;
+
+  let continueIfFinished = () => {
+    if (fCompleted && gCompleted) {
+      p.advance(cancelId);
+      return cont([fx, gx], p);
     }
-    return cancelId;
   };
 
-let orA = (f, g) => (x, cont, p) => {
-    let done = false,
-      c1, c2, cancelId;
-    // run arrows. continue when one is done
-    // do not continue with the other
-    c1 = f(x, (x) => {
-      if (!done) {
-        done = true;
-        p.advance(cancelId);
-        p.advance(c1);
-        p.cancel(c2);
-        cont(x, p);
-      }
-    }, p);
-    c2 = g(x, (x) => {
-      if (!done) {
-        done = true;
-        p.advance(cancelId);
-        p.advance(c2);
-        p.cancel(c1);
-        cont(x, p);
-      }
-    }, p);
-    cancelId = p.add(() => {
-      p.cancel(c1);
-      p.cancel(c2);
-    });
-    return cancelId;
+  let contf = (x) => {
+    fCompleted = true;
+    fx = x;
+    return continueIfFinished();
   };
+
+  let contg = (x) => {
+    gCompleted = true;
+    gx = x;
+    return continueIfFinished();
+  };
+
+  f(x.first(), contf, p);
+  return g(x.second(), contg, p);
+};
+
+// first to complete cancels the other
+// and continues with the result
+let orA = (f, g) => (x, cont, p) => {
+    // create a new canceller for arrows run
+    let myP = P();
+    // add a canceller to p that cancels anything in the new canceller
+    let cancelId = p.add(() => myP.cancelAll());
+    let completed = false;
+    // first arrow to continue delivers x
+    let orContinue = (x) => {
+      if (!completed) {
+        completed = true;
+        // cancel the other arrow
+        myP.cancelAll();
+        // advance p, which removes the canceller in p
+        p.advance(cancelId);
+        // continue with original p
+        return cont(x, p);
+      }
+    };
+    // run f and g with our own canceller
+    f(x, orContinue, myP);
+    return g(x, orContinue, myP);
+};
+
+// a more durable or that will still "work"
+// if f or g may behave synchronously
+let orASynch = (f, g) => (x, cont, p) => {
+    let isdone = false;
+    let doneX;
+    let mustContinue = false;
+    let myP = P();
+    // when f or g completes, we run orContinue
+    // which marks us as done, sets X, cancels the opposing arrow
+    // and continues with the result and the original p
+    let orContinue = (x) => {
+      isdone = true;
+      doneX = x;
+      myP.cancelAll();
+      // cope with a possibly synchronous f or g
+      // mustcontinue will be false if we ran right through f or g
+      if (mustContinue) {
+        return cont(doneX, p);
+      }
+    };
+    f(x, orContinue, myP);
+    // don't run g if f was synchronous
+    if (!isdone) {
+      g(x, orContinue, myP);
+    }
+    // if f or g was synchronous, then this will end with tail call
+    if (isdone) {
+      return cont(doneX, p);
+    }
+    // otherwise we are async and don't need to worry about tails
+    // just set up the orContinue continuation to continue
+    mustContinue = true;
+    return;
+};
 
 // simply deliver the current x
 let returnA = (x, cont, p) => cont(x, p);
@@ -237,21 +251,28 @@ function Done(x) {
 
 function repeatA(f) {
   function repeater(x, cont, p) {
-    let first = x.first(),
-      second = x.second();
-    if (second instanceof Repeat) {
+    if (x instanceof Repeat) {
         // the repeater will, when Repeating,
         // run f, continuing with the repeater
-        f([first, second.x], (x) => repeater(x, cont, p), p);
-    } else if (second instanceof Done) {
-        cont([first, second.x], p);
+        return f(x.x, (x) => repeater(x, cont, p), p);
+    } else if (x instanceof Done) {
+        return cont(x.x, p);
     } else {
         throw new TypeError("Repeat or Done?");
     }
   }
-  // run f, continuing with the repeater
+  // return an arrow that runs f, continuing with the repeater
+  // which may repeat f, or continue if done
   return thenA(f, repeater);
 }
+
+let justRepeatA = (x, cont, p) => {
+  cont(Repeat(x), p);
+};
+
+let justDoneA = (x, cont, p) => {
+  cont(Done(x), p);
+};
 
 // bind :: AsyncA a b -> AsyncA (a, b) c -> AsyncA a c
 let bindA = (f, g) => returnA.fanA(f).thenA(g);
@@ -268,14 +289,6 @@ let delayA = (ms) => (x, cont, p) => {
 		clearTimeout(id);
 	});
 	return cancelId;
-};
-
-let justRepeatA = (x, cont, p) => {
-  cont([undefined, Repeat(x)]);
-};
-
-let justDoneA = (x, cont, p) => {
-  cont([undefined, Done(x)]);
 };
 
 function Left(x) {
@@ -304,24 +317,15 @@ function Error (error, x) {
 }
 
 let leftOrRightA = (lorA, leftA, rightA) => (x, cont, p) => {
-  let c1, c2, cancelId;
-  let leftOrRight = (lor, p) => {
-    if (lor instanceof Left) {
-      c2 = leftA(lor.x, cont, p);
-    } else if (lor instanceof Right){
-      c2 = rightA(lor.x, cont, p);
+  return lorA(x, (x) => {
+    if (x instanceof Left) {
+      return leftA(x.x, cont, p);
+    } else if (x instanceof Right) {
+      return rightA(x.x, cont, p);
     } else {
       throw new TypeError("Left or Right?");
     }
-  };
-  c1 = lorA(x, leftOrRight, p);
-  cancelId = p.add(() => {
-    p.cancel(c1);
-    if (c2) {
-      p.cancel(c2);
-    }
-  });
-  return cancelId;
+  }, p);
 };
 
 module.exports = () => {
@@ -366,6 +370,9 @@ module.exports = () => {
 	if (!Function.prototype.repeatA) {
 	Function.prototype.repeatA = function () { return repeatA(this); };
 	};
+  if (!Function.prototype.leftOrRightA) {
+    Function.prototype.leftOrRightA = function (f, g) { return leftOrRightA(this, f, g); };
+  }
 	if (!Function.prototype.bindA) {
 		Function.prototype.bindA = function (g) { return bindA(this, g); };
 	};

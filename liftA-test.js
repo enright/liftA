@@ -24,7 +24,7 @@ let add1Thenadd2Thenadd5v2 = aea.thenA(add1Arr, add2Thenadd5)
 
 add1Thenadd2Thenadd5([1, 2], (x) => console.log('and the result is: ', x), aea.p)
 
-console.log(add1.liftAsyncA().thenA(add2.liftAsyncA()).thenA(add5.liftAsyncA()).runA([1,2]));
+add1.liftAsyncA().thenA(add2.liftAsyncA()).thenA(add5.liftAsyncA()).runA([1,2]);
 
 
 add1.liftAsyncA()
@@ -79,7 +79,7 @@ function repeatAdd1ArrowSynch(x, cont, p) {
   if (first === 10000) {
     doneOrRepeat = aea.Done(first);
   } else {
-    console.log(first)
+    console.log('repeatAdd1ArrowSynch', first)
     doneOrRepeat = aea.Repeat(first);
   }
   cont([first, doneOrRepeat], p);

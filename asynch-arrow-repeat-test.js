@@ -131,13 +131,12 @@ function Done(x) {
 
 function repeatA(f) {
   function repeater(x, cont, p) {
-    let second = x.second();
-    if (second instanceof Repeat) {
+    if (x instanceof Repeat) {
         // the repeater will, when Repeating,
         // run f, continuing with the repeater
-        return f([x.first(), second.x], (x) => repeater(x, cont, p), p);
-    } else if (second instanceof Done) {
-        return cont([x.first(), second.x], p);
+        return f(x.x, (x) => repeater(x, cont, p), p);
+    } else if (x instanceof Done) {
+        return cont(x.x, p);
     } else {
         throw new TypeError("Repeat or Done?");
     }
@@ -164,43 +163,37 @@ function Right(x) {
 }
 
 let leftOrRightA = (lorA, leftA, rightA) => (x, cont, p) => {
-  return lorA(x, (lor) => {
-    if (lor instanceof Left) {
-      return leftA(lor.x, cont, p);
-    } else if (lor instanceof Right) {
-      return rightA(lor.x, cont, p);
+  return lorA(x, (x) => {
+    if (x instanceof Left) {
+      return leftA(x.x, cont, p);
+    } else if (x instanceof Right) {
+      return rightA(x.x, cont, p);
     } else {
       throw new TypeError("Left or Right?");
     }
   }, p);
 };
 
+// first to complete cancels the other
+// and continues with the result
+// use only with asynchronous f and g
 let orA = (f, g) => (x, cont, p) => {
-    let isdone = false;
-    let doneX;
-    let mustContinue = false;
+    // create a new canceller for arrows run
     let myP = P();
+    // add a canceller to p that cancels anything in the new canceller
+    let cancelId = p.add(() => myP.cancelAll());
+    // first arrow to continue delivers x
     let orContinue = (x) => {
-      isdone = true;
-      doneX = x;
+      // cancel the other arrow
       myP.cancelAll();
-      if (mustContinue) {
-        cont(doneX, p);
-      }
+      // advance p, which removes the canceller in p
+      p.advance(cancelId);
+      // continue with original p
+      return cont(x, p);
     };
+    // run f and g with our own canceller
     f(x, orContinue, myP);
-    if (!isdone) {
-      g(x, orContinue, myP);
-    }
-    // if f or g was synchronous, then this will end with tail call
-    if (isdone) {
-      return cont(doneX, p);
-    }
-    // otherwise we are async and don't need to worry about tails
-    // just set up the orContinue continuation to continue
-    // (yes, really)
-    mustContinue = true;
-    return;
+    g(x, orContinue, myP);
 };
 
 // Augment Function with fluent arrow syntax
@@ -245,7 +238,7 @@ function logX(x) {
 }
 
 function doneCheck(x) {
-  return [x.first(), x.first() >= 100000 ? Done(x.second()) : Repeat(x.second())];
+  return x.first() >= 100000 ? Done(x) : Repeat(x);
 }
 
 function leftIfOdd(x) {
@@ -256,15 +249,29 @@ function leftIfOdd(x) {
   }
 }
 
-// we can use a fluent syntax which is more readable
-let runnable3 =
-  add1.liftAsyncA()
-  .thenA(leftIfOdd.liftAsyncA())
-  .leftOrRightA(returnA, logX.liftAsyncA())
-  .firstA()
-  .thenA(doneCheck.liftAsyncA())
-  .repeatA();
+// // we can use a fluent syntax which is more readable
+// let runnable2 =
+//   add1.liftAsyncA()
+//   .thenA(leftIfOdd.liftAsyncA())
+//   .leftOrRightA(returnA, logX.liftAsyncA())
+//   .firstA()
+//   .thenA(doneCheck.liftAsyncA())
+//   .repeatA();
 
 //runnable(5, (x) => console.log('done', x));
 let p = P();
+//runnable2([0, 'yikes'], (x) => console.log('done', x), p);
+
+// sync and async code can co-exist with this paradigm
+// but of course the sync code monopolizes the javascript thread
+// so use with caution
+let runnable3 =
+  add1.liftA()
+  .thenA(leftIfOdd.liftA())
+  .leftOrRightA(returnA, logX.liftA())
+  .firstA()
+  .thenA(doneCheck.liftA())
+  .repeatA();
+
+//runnable(5, (x) => console.log('done', x));
 runnable3([0, 'yikes'], (x) => console.log('done', x), p);

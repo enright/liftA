@@ -80,15 +80,14 @@ function Done(x) {
 
 function repeatA(f) {
   function repeater(x, cont) {
-    let second = x.second();
-    if (second instanceof Repeat) {
+    if (x instanceof Repeat) {
         // the repeater will, when Repeating,
         // run f, continuing with the repeater
-        return f([x.first(), second.x], (x) => repeater(x, cont));
-    } else if (second instanceof Done) {
-        return cont([x.first(), second.x]);
+        return f(x.x, (x) => repeater(x, cont));
+    } else if (x instanceof Done) {
+        return cont(x.x);
     } else {
-        throw new TypeError("Repeat or Done?");
+        throw new TypeError({ message: "Repeat or Done?", x: x });
     }
   }
   // return an arrow that runs f, continuing with the repeater
@@ -113,11 +112,11 @@ function Right(x) {
 }
 
 let leftOrRightA = (lorA, leftA, rightA) => (x, cont) => {
-  return lorA(x, (lor) => {
-    if (lor instanceof Left) {
-      return leftA(lor.x, cont);
-    } else if (lor instanceof Right) {
-      return rightA(lor.x, cont);
+  return lorA(x, (x) => {
+    if (x instanceof Left) {
+      return leftA(x.x, cont);
+    } else if (x instanceof Right) {
+      return rightA(x.x, cont);
     } else {
       throw new TypeError("Left or Right?");
     }
@@ -163,7 +162,7 @@ function logX(x) {
 }
 
 function doneCheck(x) {
-  return [x.first(), x.first() >= 100000 ? Done(x.second()) : Repeat(x.second())];
+  return x.first() >= 100000 ? Done(x) : Repeat(x);
 }
 
 //let runnable = thenA(liftA(add1), liftA(logX));
