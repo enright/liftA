@@ -72,14 +72,17 @@ let P = () => {
     counter: 0,
     canceller: {}
   };
+
   function add(f) {
     let key = (c.counter += 1).toString(); //uuid?
     c.canceller[key] = f;
     return key;
   }
+
   function advance(key) {
     delete c.canceller[key];
   }
+
   function cancel(key) {
     let canceller = c.canceller[key];
     if (canceller) {
@@ -87,12 +90,13 @@ let P = () => {
       delete c.canceller[key];
     }
   }
+
   function cancelAll() {
     Object.keys(c.canceller).forEach((key) => {
       let canceller = c.canceller[key];
       if (canceller) {
-      canceller();
-      delete c.canceller[key];
+        canceller();
+        delete c.canceller[key];
       }
     });
   }
@@ -108,14 +112,14 @@ let P = () => {
 // f is a 'normal' function taking x
 // make it behave asynchronously with setTimeout 0
 let liftAsyncA = (f) => (x, cont, p) => {
-    let cancelId,
-      clear = setTimeout(() => {
-      	let result = f(x);
-        p.advance(cancelId);
-        cont(result, p);
-      }, 0);
-    cancelId = p.add(() => clearTimeout(clear));
-  };
+  let cancelId,
+    clear = setTimeout(() => {
+      let result = f(x);
+      p.advance(cancelId);
+      cont(result, p);
+    }, 0);
+  cancelId = p.add(() => clearTimeout(clear));
+};
 
 // simple lift
 // f is a synchronous function taking x
@@ -135,7 +139,9 @@ let thenA = (f, g) => (x, cont, p) => {
 let productA = (f, g) => (x, cont, p) => {
   let myP = P();
   let cancelId = p.add(() => myP.cancelAll());
-  let fCompleted = false, gCompleted = false, fx, gx;
+  let fCompleted = false,
+    gCompleted = false,
+    fx, gx;
 
   let continueIfFinished = () => {
     if (fCompleted && gCompleted) {
@@ -163,61 +169,61 @@ let productA = (f, g) => (x, cont, p) => {
 // first to complete cancels the other
 // and continues with the result
 let orA = (f, g) => (x, cont, p) => {
-    // create a new canceller for arrows run
-    let myP = P();
-    // add a canceller to p that cancels anything in the new canceller
-    let cancelId = p.add(() => myP.cancelAll());
-    let completed = false;
-    // first arrow to continue delivers x
-    let orContinue = (x) => {
-      if (!completed) {
-        completed = true;
-        // cancel the other arrow
-        myP.cancelAll();
-        // advance p, which removes the canceller in p
-        p.advance(cancelId);
-        // continue with original p
-        return cont(x, p);
-      }
-    };
-    // run f and g with our own canceller
-    f(x, orContinue, myP);
-    return g(x, orContinue, myP);
+  // create a new canceller for arrows run
+  let myP = P();
+  // add a canceller to p that cancels anything in the new canceller
+  let cancelId = p.add(() => myP.cancelAll());
+  let completed = false;
+  // first arrow to continue delivers x
+  let orContinue = (x) => {
+    if (!completed) {
+      completed = true;
+      // cancel the other arrow
+      myP.cancelAll();
+      // advance p, which removes the canceller in p
+      p.advance(cancelId);
+      // continue with original p
+      return cont(x, p);
+    }
+  };
+  // run f and g with our own canceller
+  f(x, orContinue, myP);
+  return g(x, orContinue, myP);
 };
 
 // a more durable or that will still "work"
 // if f or g may behave synchronously
 let orASynch = (f, g) => (x, cont, p) => {
-    let isdone = false;
-    let doneX;
-    let mustContinue = false;
-    let myP = P();
-    // when f or g completes, we run orContinue
-    // which marks us as done, sets X, cancels the opposing arrow
-    // and continues with the result and the original p
-    let orContinue = (x) => {
-      isdone = true;
-      doneX = x;
-      myP.cancelAll();
-      // cope with a possibly synchronous f or g
-      // mustcontinue will be false if we ran right through f or g
-      if (mustContinue) {
-        return cont(doneX, p);
-      }
-    };
-    f(x, orContinue, myP);
-    // don't run g if f was synchronous
-    if (!isdone) {
-      g(x, orContinue, myP);
-    }
-    // if f or g was synchronous, then this will end with tail call
-    if (isdone) {
+  let isdone = false;
+  let doneX;
+  let mustContinue = false;
+  let myP = P();
+  // when f or g completes, we run orContinue
+  // which marks us as done, sets X, cancels the opposing arrow
+  // and continues with the result and the original p
+  let orContinue = (x) => {
+    isdone = true;
+    doneX = x;
+    myP.cancelAll();
+    // cope with a possibly synchronous f or g
+    // mustcontinue will be false if we ran right through f or g
+    if (mustContinue) {
       return cont(doneX, p);
     }
-    // otherwise we are async and don't need to worry about tails
-    // just set up the orContinue continuation to continue
-    mustContinue = true;
-    return;
+  };
+  f(x, orContinue, myP);
+  // don't run g if f was synchronous
+  if (!isdone) {
+    g(x, orContinue, myP);
+  }
+  // if f or g was synchronous, then this will end with tail call
+  if (isdone) {
+    return cont(doneX, p);
+  }
+  // otherwise we are async and don't need to worry about tails
+  // just set up the orContinue continuation to continue
+  mustContinue = true;
+  return;
 };
 
 // simply deliver the current x
@@ -252,13 +258,13 @@ function Done(x) {
 function repeatA(f) {
   function repeater(x, cont, p) {
     if (x instanceof Repeat) {
-        // the repeater will, when Repeating,
-        // run f, continuing with the repeater
-        return f(x.x, (x) => repeater(x, cont, p), p);
+      // the repeater will, when Repeating,
+      // run f, continuing with the repeater
+      return f(x.x, (x) => repeater(x, cont, p), p);
     } else if (x instanceof Done) {
-        return cont(x.x, p);
+      return cont(x.x, p);
     } else {
-        throw new TypeError("Repeat or Done?");
+      throw new TypeError("Repeat or Done?");
     }
   }
   // return an arrow that runs f, continuing with the repeater
@@ -281,14 +287,14 @@ let bindA = (f, g) => returnA.fanA(f).thenA(g);
 let joinA = (f, g) => f.thenA(returnA.fanA(g));
 
 let delayA = (ms) => (x, cont, p) => {
-	let id = setTimeout(() => {
-		p.advance(id);
-		cont(x, p);
-	}, ms);
-	let cancelId = p.add(() => {
-		clearTimeout(id);
-	});
-	return cancelId;
+  let id = setTimeout(() => {
+    p.advance(id);
+    cont(x, p);
+  }, ms);
+  let cancelId = p.add(() => {
+    clearTimeout(id);
+  });
+  return cancelId;
 };
 
 function Left(x) {
@@ -307,15 +313,6 @@ function Right(x) {
   }
 }
 
-function Error (error, x) {
-  if (this instanceof Error) {
-    this.error = error;
-    this.x = x;
-  } else {
-    return new Error(error, x);
-  }
-}
-
 let leftOrRightA = (lorA, leftA, rightA) => (x, cont, p) => {
   return lorA(x, (x) => {
     if (x instanceof Left) {
@@ -331,80 +328,109 @@ let leftOrRightA = (lorA, leftA, rightA) => (x, cont, p) => {
 module.exports = () => {
   let p = P();
 
-	// augment Array with access to first and second of tuple
-	if (!Array.prototype.first) {
-	  Array.prototype.first = function () { return this[0]; };
-	}
-	if (!Array.prototype.second) {
-	  Array.prototype.second = function () { return this[1]; };
-	}
-
-	// Augment Function with fluent arrow syntax
-	if (!Function.prototype.liftAsyncA) {
-		Function.prototype.liftAsyncA = function () { return liftAsyncA(this); };
-	};
-	if (!Function.prototype.liftA) {
-		Function.prototype.liftA = function () { return liftA(this); };
-	};
-	if (!Function.prototype.thenA) {
-		Function.prototype.thenA = function (g) { return thenA(this, g); };
-	};
-	if (!Function.prototype.runA) {
-		Function.prototype.runA = function (x) { return this(x, () => {}, p); };
-	};
-	if (!Function.prototype.firstA) {
-		Function.prototype.firstA = function () { return firstA(this); };
-	};
-	if (!Function.prototype.secondA) {
-		Function.prototype.secondA = function () { return secondA(this); };
-	};
-	if (!Function.prototype.fanA) {
-		Function.prototype.fanA = function (g) { return fanA(this, g); };
-	};
-	if (!Function.prototype.productA) {
-		Function.prototype.productA = function (g) { return productA(this, g); };
-	};
-	if (!Function.prototype.orA) {
-		Function.prototype.orA = function (g) { return orA(this, g); };
-	};
-	if (!Function.prototype.repeatA) {
-	Function.prototype.repeatA = function () { return repeatA(this); };
-	};
-  if (!Function.prototype.leftOrRightA) {
-    Function.prototype.leftOrRightA = function (f, g) { return leftOrRightA(this, f, g); };
+  // augment Array with access to first and second of tuple
+  if (!Array.prototype.first) {
+    Array.prototype.first = function () {
+      return this[0];
+    };
   }
-	if (!Function.prototype.bindA) {
-		Function.prototype.bindA = function (g) { return bindA(this, g); };
-	};
-	if (!Function.prototype.joinA) {
-		Function.prototype.joinA = function (g) { return joinA(this, g); };
-	};
+  if (!Array.prototype.second) {
+    Array.prototype.second = function () {
+      return this[1];
+    };
+  }
 
-	return {
-		liftAsyncA: liftAsyncA,
-		liftA: liftA,
-		returnA: returnA,
-		thenA: thenA,
-		productA: productA,
-		orA: orA,
-		fanA: fanA,
-		firstA: firstA,
-		secondA: secondA,
-		bindA: bindA,
-		joinA: joinA,
-		repeatA: repeatA,
-		delayA: delayA,
-		Repeat: Repeat,
-		Done: Done,
-		justRepeatA: justRepeatA,
-		justDoneA: justDoneA,
-		constA: constA,
+  // Augment Function with fluent arrow syntax
+  if (!Function.prototype.liftAsyncA) {
+    Function.prototype.liftAsyncA = function () {
+      return liftAsyncA(this);
+    };
+  };
+  if (!Function.prototype.liftA) {
+    Function.prototype.liftA = function () {
+      return liftA(this);
+    };
+  };
+  if (!Function.prototype.thenA) {
+    Function.prototype.thenA = function (g) {
+      return thenA(this, g);
+    };
+  };
+  if (!Function.prototype.runA) {
+    Function.prototype.runA = function (x) {
+      return this(x, () => {}, p);
+    };
+  };
+  if (!Function.prototype.firstA) {
+    Function.prototype.firstA = function () {
+      return firstA(this);
+    };
+  };
+  if (!Function.prototype.secondA) {
+    Function.prototype.secondA = function () {
+      return secondA(this);
+    };
+  };
+  if (!Function.prototype.fanA) {
+    Function.prototype.fanA = function (g) {
+      return fanA(this, g);
+    };
+  };
+  if (!Function.prototype.productA) {
+    Function.prototype.productA = function (g) {
+      return productA(this, g);
+    };
+  };
+  if (!Function.prototype.orA) {
+    Function.prototype.orA = function (g) {
+      return orA(this, g);
+    };
+  };
+  if (!Function.prototype.repeatA) {
+    Function.prototype.repeatA = function () {
+      return repeatA(this);
+    };
+  };
+  if (!Function.prototype.leftOrRightA) {
+    Function.prototype.leftOrRightA = function (f, g) {
+      return leftOrRightA(this, f, g);
+    };
+  }
+  if (!Function.prototype.bindA) {
+    Function.prototype.bindA = function (g) {
+      return bindA(this, g);
+    };
+  };
+  if (!Function.prototype.joinA) {
+    Function.prototype.joinA = function (g) {
+      return joinA(this, g);
+    };
+  };
+
+  return {
+    liftAsyncA: liftAsyncA,
+    liftA: liftA,
+    returnA: returnA,
+    thenA: thenA,
+    productA: productA,
+    orA: orA,
+    fanA: fanA,
+    firstA: firstA,
+    secondA: secondA,
+    bindA: bindA,
+    joinA: joinA,
+    repeatA: repeatA,
+    delayA: delayA,
+    Repeat: Repeat,
+    Done: Done,
+    justRepeatA: justRepeatA,
+    justDoneA: justDoneA,
+    constA: constA,
     Left: Left,
     Right: Right,
-    Error: Error,
     leftOrRightA: leftOrRightA,
     P: P,
-		p: p
-	};
+    p: p
+  };
 
 };

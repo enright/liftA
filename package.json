@@ -1,7 +1,7 @@
 {
   "name": "lifta",
-  "version": "0.0.12",
-  "description": "Asynchronous event arrows for JavaScript",
+  "version": "0.0.13",
+  "description": "Asynchronous arrows for JavaScript",
   "main": "liftA.js",
   "jshintConfig": {
     "esversion": 6
