@@ -3,7 +3,7 @@ The Point of No Return
 This is the liƒtA JavaScript library by Bill Enright. It is an implementation of
 'asynchronous arrows.' It is a library of function arrows for
 high-order functional programming of asynchronous and event-driven work
-in JavaScript. This work is an adaptation of the "Arrowlets" library by
+in JavaScript. This work was inspired by the "Arrowlets" library by
 Khoo Yit Phang. It attempts to offer a simplified view of arrows so that
 you may build on it without being confined by the original style. This
 library has fewer features in order to be less opinionated.
