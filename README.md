@@ -1,3 +1,5 @@
+![lifta image](https://s3-us-west-1.amazonaws.com/bill-enright-personal/Asset+5.svg)
+
 The Point of No Return
 
 This is the liƒtA JavaScript library by Bill Enright. It is an implementation of
