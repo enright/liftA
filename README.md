@@ -14,7 +14,14 @@ there is no longer a need to use a
 trampoline and thunking to achieve continuations, and this greatly
 simplifies the implementation of asynchronous event arrows in
 JavaScript. Also, the expressiveness of 'arrow function' syntax in ES6
-makes the code defining arrows much more readable.
+makes the code defining arrows much more readable. For example:
+
+// first f, then g, f and g are arrows
+let thenA = (f, g) => (x, cont, p) => {
+  return f(x, (x) => {
+    return g(x, cont, p);
+  }, p);
+};
 
 Arrows can be contructed from a variety of included functions, such as
 liftA(), thenA(), firstA(), secondA(), productA()
@@ -32,8 +39,12 @@ firstA() and secondA() construct arrows that operate on one of
 the pair, and pass the value of the other of the pair through.
 
 This library also augments Function with a number of useful functions
-for building more complex arrows with a fluent syntax.
+for building more complex arrows with a fluent syntax. For example:
 
-A simple mechanism for cancelling arrows is provided.
+let batchUserQueryA = createBatchUserQuery.liftA()
+  .thenA(doca.batchGetA.firstA())
+  .thenA(arwu.promoteIfErrorA);
+
+A simple mechanism for cancelling arrows 'in flight' is provided.
 
 To Be Continued...
