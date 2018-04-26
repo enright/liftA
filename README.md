@@ -1,15 +1,16 @@
 The Point of No Return
 
-This is the liftA.js library by Bill Enright. It is an implementation of
-'asynchronous event arrows' It is a library of function arrows for
+This is the liƒtA JavaScript library by Bill Enright. It is an implementation of
+'asynchronous arrows' It is a library of function arrows for
 high-order functional programming of asynchronous and event-driven work
 in JavaScript. This work is an adaptation of the "Arrowlets" library by
 Khoo Yit Phang. It attempts to offer a simplified view of arrows so that
 you may build on it without being confined by the original style. This
 library has fewer features in order to be less opinionated.
 
-With the advent of ES6 implementations that support tail call
-optimization (such as the V8 engine) there is no longer a need to use a
+With the advent of ES6 implementations that support proper tail calls
+(such as the xs engine, iOS and WebKit browser - sadly not v8 engine above 7)
+there is no longer a need to use a
 trampoline and thunking to achieve continuations, and this greatly
 simplifies the implementation of asynchronous event arrows in
 JavaScript. Also, the expressiveness of 'arrow function' syntax in ES6
