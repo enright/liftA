@@ -16,18 +16,14 @@ simplifies the implementation of asynchronous arrows in
 JavaScript. Also, the expressiveness of 'arrow function' syntax in ES6
 makes the code defining arrows much more readable. For example:
 
+```javascript
 // first f, then g, f and g are arrows
-
 let thenA = (f, g) => (x, cont, p) => {
-
   return f(x, (x) => {
-  
     return g(x, cont, p);
-    
   }, p);
-  
 };
-
+```
 Arrows can be contructed from a variety of included functions, such as
 liftA(), thenA(), firstA(), secondA(), productA()
 and fanA(). For a visual description of these arrows see arr, >>>,
@@ -46,12 +42,11 @@ the pair, and pass the value of the other of the pair through.
 This library also augments Function with a number of useful functions
 for building more complex arrows with a fluent syntax. For example:
 
+```javascript
 let batchUserQueryA = createBatchUserQuery.liftA()
-
   .thenA(doca.batchGetA.firstA())
-  
   .thenA(arwu.promoteIfErrorA);
-
+```
 A simple mechanism for cancelling arrows 'in flight' is provided.
 
 To Be Continued...
