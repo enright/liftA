@@ -15,7 +15,7 @@ function doneCheck(x) {
 }
 
 function leftIfOdd(x) {
-  if (x%2 === 0) {
+  if (x % 2 === 0) {
     return aea.Right(x);
   } else {
     return aea.Left(x);
@@ -27,9 +27,9 @@ let runnable2 =
   add1.liftAsyncA()
   .thenA(leftIfOdd.liftAsyncA())
   .leftOrRightA(aea.returnA, logX.liftAsyncA())
-  .firstA()
+  .first
   .thenA(doneCheck.liftAsyncA())
-  .repeatA();
+  .repeat;
 
 //runnable(5, (x) => console.log('done', x));
 let p2 = aea.P();
@@ -41,13 +41,18 @@ runnable2([0, 'yikes'], (x) => console.log('done', x), p2);
 
 let p3 = aea.P();
 
+let liftedAdd1 = add1.A;
+console.log('add1: ', add1);
+console.log('lifted add1: ', liftedAdd1);
+liftedAdd1(2, (x) => console.log('liftedAdd1 result:', x));
+
 let runnable3 =
-  add1.liftA()
-  .thenA(leftIfOdd.liftA())
-  .leftOrRightA(aea.returnA, logX.liftA())
-  .firstA()
-  .thenA(doneCheck.liftA())
-  .repeatA();
+  liftedAdd1
+  .thenA(leftIfOdd.A)
+  .leftOrRightA(aea.returnA, logX.A)
+  .first
+  .thenA(doneCheck.A)
+  .repeat;
 
 //runnable(5, (x) => console.log('done', x));
 runnable3([0, 'yikes'], (x) => console.log('done', x), p3);

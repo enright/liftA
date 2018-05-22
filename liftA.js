@@ -345,67 +345,144 @@ module.exports = () => {
     Function.prototype.liftAsyncA = function () {
       return liftAsyncA(this);
     };
-  };
+  }
+
   if (!Function.prototype.liftA) {
     Function.prototype.liftA = function () {
       return liftA(this);
     };
-  };
+  }
+
+  // a property that provides a lifted version of a function
+  // for syntactic convenience
+  // only lift a function once
+  Object.defineProperty(Function.prototype, 'A', {
+    get: function () { // can't use arrow syntax, need correct 'this'
+      if (this.liftedA) {
+        return this.liftedA;
+      } else {
+        this.liftedA = liftA(this);
+        return this.liftedA;
+      }
+    }
+  });
+
   if (!Function.prototype.thenA) {
     Function.prototype.thenA = function (g) {
       return thenA(this, g);
     };
-  };
+  }
+
   if (!Function.prototype.runA) {
     Function.prototype.runA = function (x) {
       return this(x, () => {}, p);
     };
-  };
+  }
+
   if (!Function.prototype.firstA) {
     Function.prototype.firstA = function () {
       return firstA(this);
     };
-  };
+  }
+
+  // a first property for syntatic convenience
+  Object.defineProperty(Function.prototype, 'first', {
+    get: function () {
+      return firstA(this);
+    }
+  });
+
   if (!Function.prototype.secondA) {
     Function.prototype.secondA = function () {
       return secondA(this);
     };
-  };
+  }
+
+  // a second property for syntatic convenience
+  Object.defineProperty(Function.prototype, 'second', {
+    get: function () {
+      return secondA(this);
+    }
+  });
+
   if (!Function.prototype.fanA) {
     Function.prototype.fanA = function (g) {
       return fanA(this, g);
     };
-  };
+  }
+
   if (!Function.prototype.productA) {
     Function.prototype.productA = function (g) {
       return productA(this, g);
     };
-  };
+  }
+
   if (!Function.prototype.orA) {
     Function.prototype.orA = function (g) {
       return orA(this, g);
     };
-  };
+  }
+
   if (!Function.prototype.repeatA) {
     Function.prototype.repeatA = function () {
       return repeatA(this);
     };
-  };
+  }
+
+  // a repeat property for syntactic convenience
+  Object.defineProperty(Function.prototype, 'repeat', {
+    get: function () {
+      return repeatA(this);
+    }
+  });
+
   if (!Function.prototype.leftOrRightA) {
     Function.prototype.leftOrRightA = function (f, g) {
       return leftOrRightA(this, f, g);
     };
   }
+
   if (!Function.prototype.bindA) {
     Function.prototype.bindA = function (g) {
       return bindA(this, g);
     };
-  };
+  }
+
   if (!Function.prototype.joinA) {
     Function.prototype.joinA = function (g) {
       return joinA(this, g);
     };
-  };
+  }
+
+  Object.defineProperty(Function.prototype, 'leftOnError', {
+    get: function () {
+      if (!this.leftError) {
+        let f = this;
+        this.leftError = (x, cont, p) => {
+          return f(x, (x, p) => {
+            return cont((x instanceof Error) ? Left(x) : Right(x), p);
+          }, p);
+        };
+      }
+      return this.leftError;
+    }
+  });
+
+  Object.defineProperty(Function.prototype, 'errorBarrier', {
+    get: function () {
+      if (!this.barrier) {
+        let f = this;
+        this.barrier = (x, cont, p) => {
+          if (x instanceof Error) {
+            return cont(x, p);
+          } else {
+            return f(x, cont, p);
+          }
+        };
+      }
+      return this.barrier;
+    }
+  });
 
   return {
     liftAsyncA: liftAsyncA,

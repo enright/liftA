@@ -24,23 +24,29 @@ let add1Thenadd2Thenadd5v2 = aea.thenA(add1Arr, add2Thenadd5)
 
 add1Thenadd2Thenadd5([1, 2], (x) => console.log('and the result is: ', x), aea.p)
 
-add1.liftAsyncA().thenA(add2.liftAsyncA()).thenA(add5.liftAsyncA()).runA([1,2]);
+add1.liftAsyncA().thenA(add2.liftAsyncA()).thenA(add5.liftAsyncA()).runA([1, 2]);
 
 
 add1.liftAsyncA()
   .thenA(add2.liftAsyncA())
   .thenA(add5.liftAsyncA())
-  .runA([1,2]);
+  .runA([1, 2]);
 
 add1Thenadd2Thenadd5v2([6, 7], (x) => console.log('and the result is: ', x), aea.p)
 
 add1.liftAsyncA()
   .thenA(add2.liftAsyncA().thenA(add5.liftAsyncA()))
-  .runA([6,7]);
+  .runA([6, 7]);
 //
 let testProductArrow = aea.productA(add1Arr, add5Arr);
-testProductArrow([[1,5],[2,6]], (x) => console.log('test product: ', x), aea.p);
-add1.liftAsyncA().productA(add5.liftAsyncA()).runA([[1,5],[2,6]]);
+testProductArrow([
+  [1, 5],
+  [2, 6]
+], (x) => console.log('test product: ', x), aea.p);
+add1.liftAsyncA().productA(add5.liftAsyncA()).runA([
+  [1, 5],
+  [2, 6]
+]);
 //
 let fan1And5 = aea.fanA(add1Arr, add5Arr);
 let testFanArrow = aea.fanA(fan1And5, add2Arr);
@@ -48,10 +54,10 @@ testFanArrow([6, 2], (x) => console.log('test fan: ', x), aea.p);
 add1.liftAsyncA().fanA(add5.liftAsyncA()).fanA(add2.liftAsyncA()).runA([6, 2])
 //
 let testFirstArrow = aea.firstA(aea.liftAsyncA((x) => x * 2))
-testFirstArrow([2, "dave"], (x) => console.log('testFirstArrow: ', x), aea.p)// types for looping
+testFirstArrow([2, "dave"], (x) => console.log('testFirstArrow: ', x), aea.p) // types for looping
 //
 let testSecondArrow = aea.secondA(aea.liftAsyncA((x) => x * 3))
-testSecondArrow(["suzie creamcheese", 3], (x) => console.log('testSecondArrow: ', x), aea.p)// types for looping
+testSecondArrow(["suzie creamcheese", 3], (x) => console.log('testSecondArrow: ', x), aea.p) // types for looping
 //
 // function repeatAdd1Arrow(x, cont, p) {
 //   setTimeout(() => {
@@ -65,13 +71,14 @@ testSecondArrow(["suzie creamcheese", 3], (x) => console.log('testSecondArrow: '
 // }
 //
 // let's create a new progress
-myaea = require('./liftA')();
+myaea = aea;
+myaeap = aea.P();
 let frst = myaea.firstA(myaea.liftAsyncA((x) => x + 1)).thenA(myaea.justRepeatA);
 let repeatTest = frst.repeatA();
 console.log('run repeat test');
-repeatTest([0, myaea.Repeat()], () => console.log('lsdjfldskjflksdjf'), myaea.p);
+repeatTest([0, myaea.Repeat()], () => console.log('lsdjfldskjflksdjf'), myaeap);
 console.log('stop the repeater');
-myaea.p.cancelAll();
+myaeap.cancelAll();
 
 function repeatAdd1ArrowSynch(x, cont, p) {
   let first = x.first();
@@ -94,18 +101,52 @@ function repeatAdd1ArrowSynch(x, cont, p) {
 // let repeatTestSynchA = aea.repeatA(frstSynchA);
 // repeatTestSynchA.runA([0, aea.Repeat()]);
 
-let testDelay = aea.thenA((x, cont, p) => { console.log('start delay 2000'); cont(x, p); }, aea.thenA(aea.delayA(2000), (x, cont, p) => {console.log('end delay 2000');}));
-testDelay([1,2], () => {}, aea.p);
-let testCancelDelay = aea.thenA((x, cont, p) => { console.log('start delay 3000'); cont(x, p); }, aea.thenA(aea.delayA(3000), (x, cont, p) => {console.log('end delay 3000');}));
-cancelId = testCancelDelay([1,2], () => {}, aea.p);
+let testDelay = aea.thenA((x, cont, p) => {
+  console.log('start delay 2000');
+  cont(x, p);
+}, aea.thenA(aea.delayA(2000), (x, cont, p) => {
+  console.log('end delay 2000');
+}));
+testDelay([1, 2], () => {}, aea.p);
+let testCancelDelay = aea.thenA((x, cont, p) => {
+  console.log('start delay 3000');
+  cont(x, p);
+}, aea.thenA(aea.delayA(3000), (x, cont, p) => {
+  console.log('end delay 3000');
+}));
+cancelId = testCancelDelay([1, 2], () => {}, aea.p);
 aea.p.cancel(cancelId);
 
 
 let stuff = aea
-	.secondA(
-		((x) => x + 2).liftAsyncA()
-	)
-	.thenA(
-		((x) => { x.first()('cool it is ', x.second()); return x; }).liftAsyncA()
-	);
+  .secondA(
+    ((x) => x + 2).liftAsyncA()
+  )
+  .thenA(
+    ((x) => {
+      x.first()('cool it is ', x.second());
+      return x;
+    }).liftAsyncA()
+  );
 stuff.runA([console.log, 0], stuff);
+
+//
+function returnErrorIfNull(x) {
+  if (x === null) {
+    return new Error('bad null');
+  } else {
+    return x;
+  }
+}
+
+let testLOE = returnErrorIfNull.A.leftOnError;
+console.log('testLOE: ', testLOE);
+testLOE(3, (x) => console.log('testLOE x is: ', x), aea.P());
+testLOE(null, (x) => console.log('testLOE x is: ', x), aea.P());
+
+function addOne(x) {
+  return x + 1;
+}
+let testErrorBarrior = returnErrorIfNull.A.thenA(addOne.A.errorBarrier);
+testErrorBarrior(3, (x) => console.log('testErrorBarrior x is: ', x), aea.P());
+testErrorBarrior(null, (x) => console.log('testErrorBarrior x is: ', x), aea.P());
