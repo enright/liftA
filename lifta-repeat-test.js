@@ -11,7 +11,7 @@ function logX(x) {
 }
 
 function doneCheck(x) {
-  return x.first() >= 100000 ? aea.Done(x) : aea.Repeat(x);
+  return x.first >= 100000 ? aea.Done(x) : aea.Repeat(x);
 }
 
 function leftIfOdd(x) {

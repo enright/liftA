@@ -1,15 +1,15 @@
 let aea = require('./liftA')();
 
 function add1(x) {
-  return [x.first() + 1, x.second() - 1];
+  return [x.first + 1, x.second - 1];
 }
 
 function add2(x) {
-  return [x.first() + 2, x.second() - 2];
+  return [x.first + 2, x.second - 2];
 }
 
 function add5(x) {
-  return [x.first() + 5, x.second() - 5];
+  return [x.first + 5, x.second - 5];
 }
 
 let add1Arr = aea.liftAsyncA(add1);
@@ -81,7 +81,7 @@ console.log('stop the repeater');
 myaeap.cancelAll();
 
 function repeatAdd1ArrowSynch(x, cont, p) {
-  let first = x.first();
+  let first = x.first;
   let doneOrRepeat;
   if (first === 10000) {
     doneOrRepeat = aea.Done(first);
@@ -124,29 +124,22 @@ let stuff = aea
   )
   .thenA(
     ((x) => {
-      x.first()('cool it is ', x.second());
-      return x;
-    }).liftAsyncA()
-  );
-stuff.runA([console.log, 0], stuff);
+      x.first('cool it is ', x.second;
+        return x;
+      }).liftAsyncA()); stuff.runA([console.log, 0], stuff);
 
-//
-function returnErrorIfNull(x) {
-  if (x === null) {
-    return new Error('bad null');
-  } else {
-    return x;
-  }
-}
+    //
+    function returnErrorIfNull(x) {
+      if (x === null) {
+        return new Error('bad null');
+      } else {
+        return x;
+      }
+    }
 
-let testLOE = returnErrorIfNull.A.leftOnError;
-console.log('testLOE: ', testLOE);
-testLOE(3, (x) => console.log('testLOE x is: ', x), aea.P());
-testLOE(null, (x) => console.log('testLOE x is: ', x), aea.P());
+    let testLOE = returnErrorIfNull.A.leftOnError; console.log('testLOE: ', testLOE); testLOE(3, (x) => console.log('testLOE x is: ', x), aea.P()); testLOE(null, (x) => console.log('testLOE x is: ', x), aea.P());
 
-function addOne(x) {
-  return x + 1;
-}
-let testErrorBarrior = returnErrorIfNull.A.thenA(addOne.A.errorBarrier);
-testErrorBarrior(3, (x) => console.log('testErrorBarrior x is: ', x), aea.P());
-testErrorBarrior(null, (x) => console.log('testErrorBarrior x is: ', x), aea.P());
+    function addOne(x) {
+      return x + 1;
+    }
+    let testErrorBarrior = returnErrorIfNull.A.thenA(addOne.A.errorBarrier); testErrorBarrior(3, (x) => console.log('testErrorBarrior x is: ', x), aea.P()); testErrorBarrior(null, (x) => console.log('testErrorBarrior x is: ', x), aea.P());

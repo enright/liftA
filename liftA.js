@@ -162,8 +162,8 @@ let productA = (f, g) => (x, cont, p) => {
     return continueIfFinished();
   };
 
-  f(x.first(), contf, p);
-  return g(x.second(), contg, p);
+  f(x.first, contf, p);
+  return g(x.second, contg, p);
 };
 
 // first to complete cancels the other
@@ -329,16 +329,17 @@ module.exports = () => {
   let p = P();
 
   // augment Array with access to first and second of tuple
-  if (!Array.prototype.first) {
-    Array.prototype.first = function () {
+  Object.defineProperty(Array.prototype, 'first', {
+    get: function () {
       return this[0];
-    };
-  }
-  if (!Array.prototype.second) {
-    Array.prototype.second = function () {
+    }
+  });
+
+  Object.defineProperty(Array.prototype, 'second', {
+    get: function () {
       return this[1];
-    };
-  }
+    }
+  });
 
   // Augment Function with fluent arrow syntax
   if (!Function.prototype.liftAsyncA) {
