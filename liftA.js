@@ -168,7 +168,7 @@ let productA = (f, g) => (x, cont, p) => {
 
 // first to complete cancels the other
 // and continues with the result
-let orA = (f, g) => (x, cont, p) => {
+let eitherA = (f, g) => (x, cont, p) => {
   // create a new canceller for arrows run
   let myP = P();
   // add a canceller to p that cancels anything in the new canceller
@@ -191,7 +191,7 @@ let orA = (f, g) => (x, cont, p) => {
   return g(x, orContinue, myP);
 };
 
-// a more durable or that will still "work"
+// a more durable either that will still "work"
 // if f or g may behave synchronously
 let orASynch = (f, g) => (x, cont, p) => {
   let isdone = false;
@@ -226,14 +226,26 @@ let orASynch = (f, g) => (x, cont, p) => {
   return;
 };
 
+// create an arrow to transform x into [x, x] then product of arrows f and g
+// the fanned arrows should be returning new objects or values
+let fanA = (f, g) => thenA(liftA((x) => [x, x]), productA(f, g));
+
+let delayA = (ms) => (x, cont, p) => {
+  let id = setTimeout(() => {
+    p.advance(id);
+    cont(x, p);
+  }, ms);
+  let cancelId = p.add(() => {
+    clearTimeout(id);
+  });
+  return cancelId;
+};
+
 // simply deliver the current x
 let returnA = (x, cont, p) => cont(x, p);
 
 // deliver a constant instead of x
 let constA = (c) => (x, cont, p) => cont(c, p);
-
-// create an arrow to transform x into [x, x] then product of arrows f and g
-let fanA = (f, g) => thenA(liftA((x) => [x, x]), productA(f, g));
 
 let firstA = (f) => productA(f, returnA);
 
@@ -280,23 +292,6 @@ let justDoneA = (x, cont, p) => {
   cont(Done(x), p);
 };
 
-// bind :: AsyncA a b -> AsyncA (a, b) c -> AsyncA a c
-let bindA = (f, g) => returnA.fanA(f).thenA(g);
-
-// join :: AsyncA a b -> AsyncA b c -> AsyncA a (Tuple [b, c])
-let joinA = (f, g) => f.thenA(returnA.fanA(g));
-
-let delayA = (ms) => (x, cont, p) => {
-  let id = setTimeout(() => {
-    p.advance(id);
-    cont(x, p);
-  }, ms);
-  let cancelId = p.add(() => {
-    clearTimeout(id);
-  });
-  return cancelId;
-};
-
 function Left(x) {
   if (this instanceof Left) {
     this.x = x;
@@ -325,6 +320,56 @@ let leftOrRightA = (lorA, leftA, rightA) => (x, cont, p) => {
   }, p);
 };
 
+function promoteError(x) {
+  let first = x.first;
+  if (first instanceof Error) {
+    first.x = [first.x, x.second];
+    return first;
+  } else {
+    return x;
+  }
+}
+
+let fanAndReducePairA = (f, g, r) => {
+  return f.a.fan(g.a).then(r.a);
+};
+
+let falseA = (g) => {
+  return (x, cont, p) => {
+    if (!x.first) {
+      return g(x, cont, p);
+    } else {
+      return cont(x, p);
+    }
+  };
+};
+
+let trueA = (g) => {
+  return (x, cont, p) => {
+    if (x.first) {
+      return g(x, cont, p);
+    } else {
+      return cont(x, p);
+    }
+  };
+};
+
+let notA = (x, cont, p) => {
+  cont([!x.first, x.second], p);
+};
+
+let falseErrorA = (x, cont, p) => {
+  cont(x.first === false ? Error(x) : x, p);
+};
+
+function reduceOr(x) {
+  return [x.first.first || x.second.first, x.first.second];
+}
+
+function reduceAnd(x) {
+  return [x.first.first && x.second.first, x.first.second];
+}
+
 module.exports = () => {
   let p = P();
 
@@ -341,139 +386,120 @@ module.exports = () => {
     }
   });
 
-  // Augment Function with fluent arrow syntax
-  if (!Function.prototype.liftAsyncA) {
-    Function.prototype.liftAsyncA = function () {
-      return liftAsyncA(this);
-    };
-  }
-
-  if (!Function.prototype.liftA) {
-    Function.prototype.liftA = function () {
-      return liftA(this);
-    };
-  }
-
-  // a property that provides a lifted version of a function
-  // for syntactic convenience
-  // only lift a function once
-  Object.defineProperty(Function.prototype, 'A', {
-    get: function () { // can't use arrow syntax, need correct 'this'
-      if (this.liftedA) {
-        return this.liftedA;
-      } else {
-        this.liftedA = liftA(this);
-        return this.liftedA;
+  Object.defineProperty(Function.prototype, 'a', {
+    get: function () {
+      if (!this._a) {
+        // if this is a function of three parameters
+        // then presume it's an arrow already
+        if (this.length === 3) {
+          this._a = this;
+        } else if (this.length > 1) {
+          // ^ note this means functions of 1 or 0 formal params can be lifted
+          return Error('incorrect number of parameters');
+        } else {
+          let that = this;
+          let arrow = (x, cont, p) => {
+            cont(that(x), p);
+          }; // set 'A' to an arrow
+          arrow._a = arrow; // an arrow self-references
+          this._a = arrow;
+        }
       }
+      return this._a;
     }
   });
 
-  if (!Function.prototype.thenA) {
-    Function.prototype.thenA = function (g) {
-      return thenA(this, g);
+  if (!Function.prototype.then) {
+    Function.prototype.then = function (g) {
+      return thenA(this.a, g.a);
     };
   }
 
-  if (!Function.prototype.runA) {
-    Function.prototype.runA = function (x) {
-      return this(x, () => {}, p);
-    };
-  }
-
-  if (!Function.prototype.firstA) {
-    Function.prototype.firstA = function () {
-      return firstA(this);
+  if (!Function.prototype.run) {
+    Function.prototype.run = function (x) {
+      let p = P();
+      this.a(x, () => {}, p);
+      return p;
     };
   }
 
   // a first property for syntatic convenience
   Object.defineProperty(Function.prototype, 'first', {
     get: function () {
-      return firstA(this);
+      return firstA(this.a);
     }
   });
-
-  if (!Function.prototype.secondA) {
-    Function.prototype.secondA = function () {
-      return secondA(this);
-    };
-  }
 
   // a second property for syntatic convenience
   Object.defineProperty(Function.prototype, 'second', {
     get: function () {
-      return secondA(this);
+      return secondA(this.a);
     }
   });
 
-  if (!Function.prototype.fanA) {
-    Function.prototype.fanA = function (g) {
-      return fanA(this, g);
+  if (!Function.prototype.fan) {
+    Function.prototype.fan = function (g) {
+      return fanA(this.a, g.a);
     };
   }
 
-  if (!Function.prototype.productA) {
-    Function.prototype.productA = function (g) {
-      return productA(this, g);
+  if (!Function.prototype.product) {
+    Function.prototype.product = function (g) {
+      return productA(this.a, g.a);
     };
   }
 
-  if (!Function.prototype.orA) {
-    Function.prototype.orA = function (g) {
-      return orA(this, g);
-    };
-  }
-
-  if (!Function.prototype.repeatA) {
-    Function.prototype.repeatA = function () {
-      return repeatA(this);
+  if (!Function.prototype.either) {
+    Function.prototype.either = function (g) {
+      return eitherA(this, g);
     };
   }
 
   // a repeat property for syntactic convenience
   Object.defineProperty(Function.prototype, 'repeat', {
     get: function () {
-      return repeatA(this);
+      return repeatA(this.a);
     }
   });
 
-  if (!Function.prototype.leftOrRightA) {
-    Function.prototype.leftOrRightA = function (f, g) {
-      return leftOrRightA(this, f, g);
+  if (!Function.prototype.lor) {
+    Function.prototype.lor = function (f, g) {
+      return leftOrRightA(this.a, f.a, g.a);
     };
   }
 
-  if (!Function.prototype.bindA) {
-    Function.prototype.bindA = function (g) {
-      return bindA(this, g);
-    };
-  }
-
-  if (!Function.prototype.joinA) {
-    Function.prototype.joinA = function (g) {
-      return joinA(this, g);
-    };
-  }
-
-  Object.defineProperty(Function.prototype, 'leftOnError', {
+  Object.defineProperty(Function.prototype, 'falseError', {
     get: function () {
-      if (!this.leftError) {
-        let f = this;
-        this.leftError = (x, cont, p) => {
+      return this.a.then(falseErrorA);
+    }
+  });
+
+
+  Object.defineProperty(Function.prototype, 'promoteError', {
+    get: function () {
+      return this.a.then(promoteError.a);
+    }
+  });
+
+  Object.defineProperty(Function.prototype, 'leftError', {
+    get: function () {
+      if (!this._leftError) {
+        let f = this.a;
+        this._leftError = (x, cont, p) => {
           return f(x, (x, p) => {
             return cont((x instanceof Error) ? Left(x) : Right(x), p);
           }, p);
         };
       }
-      return this.leftError;
+      return this._leftError;
     }
   });
 
-  Object.defineProperty(Function.prototype, 'errorBarrier', {
+  Object.defineProperty(Function.prototype, 'barrier', {
     get: function () {
-      if (!this.barrier) {
-        let f = this;
-        this.barrier = (x, cont, p) => {
+      if (!this._barrier) {
+        let f = this.a;
+        this._barrier = (x, cont, p) => {
           if (x instanceof Error) {
             return cont(x, p);
           } else {
@@ -481,32 +507,72 @@ module.exports = () => {
           }
         };
       }
-      return this.barrier;
+      return this._barrier;
     }
   });
+
+  if (!Function.prototype.or) {
+    Function.prototype.or = function (g) {
+      return fanAndReducePairA(this, g, reduceOr);
+    };
+  }
+
+  if (!Function.prototype.and) {
+    Function.prototype.and = function (g) {
+      return fanAndReducePairA(this, g, reduceAnd);
+    };
+  }
+
+  // allow not to be set
+  Object.defineProperty(Function.prototype, 'not', {
+    get: function () {
+      if (this._not === undefined) {
+        return this.a.then(notA);
+      } else {
+        return this._not;
+      }
+    },
+    set: (v) => this._not = v
+  });
+
+  if (!Function.prototype.false) {
+    Function.prototype.false = function (g) {
+      return this.a.then(falseA(g.a));
+    };
+  }
+
+  if (!Function.prototype.true) {
+    Function.prototype.true = function (g) {
+      return this.a.then(trueA(g.a));
+    };
+  }
 
   return {
     liftAsyncA: liftAsyncA,
     liftA: liftA,
-    returnA: returnA,
     thenA: thenA,
     productA: productA,
-    orA: orA,
+    eitherA: eitherA,
+    orSynchA: orASynch,
     fanA: fanA,
+    delayA: delayA,
+    returnA: returnA,
+    constA: constA,
     firstA: firstA,
     secondA: secondA,
-    bindA: bindA,
-    joinA: joinA,
-    repeatA: repeatA,
-    delayA: delayA,
     Repeat: Repeat,
     Done: Done,
+    repeatA: repeatA,
     justRepeatA: justRepeatA,
     justDoneA: justDoneA,
-    constA: constA,
     Left: Left,
     Right: Right,
     leftOrRightA: leftOrRightA,
+    promoteErrorA: promoteError.a,
+    falseA: falseA,
+    trueA: trueA,
+    notA: notA,
+    falseErrorA: falseErrorA,
     P: P,
     p: p
   };
