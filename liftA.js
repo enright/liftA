@@ -359,7 +359,12 @@ let notA = (x, cont, p) => {
 };
 
 let falseErrorA = (x, cont, p) => {
-  cont(x.first === false ? Error(x) : x, p);
+  let contX = x;
+  if (x.first === false) {
+    contX = Error(false);
+    contX.x = x;
+  }
+  cont(contX, p);
 };
 
 function reduceOr(x) {
