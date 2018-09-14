@@ -348,10 +348,6 @@ To Be Continued...
     }
   }
 
-  let fanAndReducePairA = (f, g, r) => {
-    return f.a.fan(g.a).then(r.a);
-  };
-
   let falseA = (g) => {
     return (x, cont, p) => {
       if (!x.first) {
@@ -384,14 +380,6 @@ To Be Continued...
     }
     cont(contX, p);
   };
-
-  function reduceOr(x) {
-    return [x.first.first || x.second.first, x.first.second];
-  }
-
-  function reduceAnd(x) {
-    return [x.first.first && x.second.first, x.first.second];
-  }
 
   module.exports = {
     liftAsyncA: liftAsyncA,
