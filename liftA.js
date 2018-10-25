@@ -338,16 +338,6 @@ To Be Continued...
     }, p);
   };
 
-  function promoteError(x) {
-    let first = x.first;
-    if (first instanceof Error) {
-      first.x = [first.x, x.second];
-      return first;
-    } else {
-      return x;
-    }
-  }
-
   let falseA = (g) => {
     return (x, cont, p) => {
       if (!x.first) {
@@ -402,7 +392,6 @@ To Be Continued...
     Left: Left,
     Right: Right,
     leftOrRightA: leftOrRightA,
-    promoteErrorA: promoteError.a,
     falseA: falseA,
     trueA: trueA,
     notA: notA,
