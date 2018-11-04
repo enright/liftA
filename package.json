@@ -1,19 +1,20 @@
 {
   "name": "lifta",
-  "version": "0.0.20",
-  "description": "Asynchronous arrows for JavaScript",
+  "version": "1.0.0",
+  "description": "Asynchronous arrows for JavaScript. Eventual programming.",
   "main": "liftA.js",
   "jshintConfig": {
     "esversion": 6
   },
   "scripts": {
-    "test": "mocha tests/mocha-test-syntax.js; mocha tests/mocha-test-boolean.js"
+    "test": "mocha tests/mocha-test-lifta.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/enright/liftA.git"
   },
   "keywords": [
+    "eventual",
     "function",
     "arrows",
     "monads",
@@ -27,6 +28,7 @@
   },
   "homepage": "https://github.com/enright/liftA#readme",
   "devDependencies": {
-    "immer": "^1.3.1"
+    "immer": "^1.3.1",
+    "lolex": "^3.0.0"
   }
 }

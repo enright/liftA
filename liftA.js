@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 (function () {
-  "use strict"; // enables proper tail calls (PTC)
+  "use strict"; // enables proper tail calls (PTC) in ES6
 
   // augment Array with access to first and second of tuple
   if (!Array.prototype.first) {
@@ -41,57 +41,56 @@ SOFTWARE.
     });
   }
 
-  let P = () => {
-    let c = {
-      counter: 0,
-      canceller: {}
-    };
+  let P = function () {
+    let counter = 0;
+    let cancellers = {};
 
     function add(f) {
-      let key = (c.counter += 1).toString(); //uuid?
-      c.canceller[key] = f;
+      let key = (counter += 1).toString(); //uuid?
+      cancellers[key] = f;
       return key;
     }
 
     function advance(key) {
-      delete c.canceller[key];
+      delete cancellers[key];
     }
 
     function cancel(key) {
-      let canceller = c.canceller[key];
+      let canceller = cancellers[key];
       if (canceller) {
         canceller();
-        delete c.canceller[key];
+        delete cancellers[key];
       }
     }
 
     function cancelAll() {
-      Object.keys(c.canceller).forEach((key) => {
-        let canceller = c.canceller[key];
+      Object.keys(cancellers).forEach((key) => {
+        let canceller = cancellers[key];
         if (canceller) {
           canceller();
-          delete c.canceller[key];
+          delete cancellers[key];
         }
       });
     }
-    return {
-      add: add,
-      advance: advance,
-      cancel: cancel,
-      cancelAll: cancelAll
-    };
+
+    return Object.freeze({
+      add,
+      advance,
+      cancel,
+      cancelAll
+    });
   };
 
   // cancellable asynchronous lift
   // f is a 'normal' function taking x
   // make it behave asynchronously with setTimeout 0
   let liftAsyncA = (f) => (x, cont, p) => {
-    let cancelId,
-      clear = setTimeout(() => {
-        let result = f(x);
-        p.advance(cancelId);
-        cont(result, p);
-      }, 0);
+    let cancelId;
+    let clear = setTimeout(() => {
+      let result = f(x);
+      p.advance(cancelId);
+      return cont(result, p);
+    }, 0);
     cancelId = p.add(() => clearTimeout(clear));
   };
 
@@ -113,9 +112,10 @@ SOFTWARE.
   let productA = (f, g) => (x, cont, p) => {
     let myP = P();
     let cancelId = p.add(() => myP.cancelAll());
-    let fCompleted = false,
-      gCompleted = false,
-      fx, gx;
+    let fCompleted = false;
+    let gCompleted = false;
+    let fx;
+    let gx;
 
     let continueIfFinished = () => {
       if (fCompleted && gCompleted) {
@@ -147,18 +147,14 @@ SOFTWARE.
     let myP = P();
     // add a canceller to p that cancels anything in the new canceller
     let cancelId = p.add(() => myP.cancelAll());
-    let completed = false;
     // first arrow to continue delivers x
     let orContinue = (x) => {
-      if (!completed) {
-        completed = true;
-        // cancel the other arrow
-        myP.cancelAll();
-        // advance p, which removes the canceller in p
-        p.advance(cancelId);
-        // continue with original p
-        return cont(x, p);
-      }
+      // cancel the other arrow
+      myP.cancelAll();
+      // advance p, which removes the canceller in p
+      p.advance(cancelId);
+      // continue with original p
+      return cont(x, p);
     };
     // run f and g with our own canceller
     f(x, orContinue, myP);
@@ -167,11 +163,13 @@ SOFTWARE.
 
   // a more durable either that will still "work"
   // if f or g may behave synchronously
-  let orASynch = (f, g) => (x, cont, p) => {
+  let eitherSyncA = (f, g) => (x, cont, p) => {
     let isdone = false;
     let doneX;
     let mustContinue = false;
     let myP = P();
+    // add a canceller to p that cancels anything in the new canceller
+    let cancelId = p.add(() => myP.cancelAll());
     // when f or g completes, we run orContinue
     // which marks us as done, sets X, cancels the opposing arrow
     // and continues with the result and the original p
@@ -179,6 +177,7 @@ SOFTWARE.
       isdone = true;
       doneX = x;
       myP.cancelAll();
+      p.advance(cancelId);
       // cope with a possibly synchronous f or g
       // mustcontinue will be false if we ran right through f or g
       if (mustContinue) {
@@ -205,21 +204,25 @@ SOFTWARE.
   let fanA = (f, g) => thenA(liftA((x) => [x, x]), productA(f, g));
 
   let delayA = (ms) => (x, cont, p) => {
+    let cancelId;
     let id = setTimeout(() => {
-      p.advance(id);
-      cont(x, p);
+      p.advance(cancelId);
+      return cont(x, p);
     }, ms);
-    let cancelId = p.add(() => {
+    cancelId = p.add(() => {
       clearTimeout(id);
     });
-    return cancelId;
   };
 
   // simply deliver the current x
-  let returnA = (x, cont, p) => cont(x, p);
+  let returnA = (x, cont, p) => {
+    return cont(x, p);
+  };
 
   // deliver a constant instead of x
-  let constA = (c) => (x, cont, p) => cont(c, p);
+  let constA = (c) => (x, cont, p) => {
+    return cont(c, p);
+  };
 
   let firstA = (f) => productA(f, returnA);
 
@@ -259,11 +262,11 @@ SOFTWARE.
   }
 
   let justRepeatA = (x, cont, p) => {
-    cont(Repeat(x), p);
+    return cont(Repeat(x), p);
   };
 
   let justDoneA = (x, cont, p) => {
-    cont(Done(x), p);
+    return cont(Done(x), p);
   };
 
   function Left(x) {
@@ -315,7 +318,7 @@ SOFTWARE.
   };
 
   let notA = (x, cont, p) => {
-    cont([!x.first, x.second], p);
+    return cont([!x.first, x.second], p);
   };
 
   let falseErrorA = (x, cont, p) => {
@@ -324,35 +327,35 @@ SOFTWARE.
       contX = Error(false);
       contX.x = x;
     }
-    cont(contX, p);
+    return cont(contX, p);
   };
 
-  module.exports = {
-    liftAsyncA: liftAsyncA,
-    liftA: liftA,
-    thenA: thenA,
-    productA: productA,
-    eitherA: eitherA,
-    orSynchA: orASynch,
-    fanA: fanA,
-    delayA: delayA,
-    returnA: returnA,
-    constA: constA,
-    firstA: firstA,
-    secondA: secondA,
-    Repeat: Repeat,
-    Done: Done,
-    repeatA: repeatA,
-    justRepeatA: justRepeatA,
-    justDoneA: justDoneA,
-    Left: Left,
-    Right: Right,
-    leftOrRightA: leftOrRightA,
-    falseA: falseA,
-    trueA: trueA,
-    notA: notA,
-    falseErrorA: falseErrorA,
-    P: P
-  };
+  module.exports = Object.freeze({
+    liftAsyncA,
+    liftA,
+    thenA,
+    productA,
+    eitherA,
+    eitherSyncA,
+    fanA,
+    delayA,
+    returnA,
+    constA,
+    firstA,
+    secondA,
+    Repeat,
+    Done,
+    repeatA,
+    justRepeatA,
+    justDoneA,
+    Left,
+    Right,
+    leftOrRightA,
+    falseA,
+    trueA,
+    notA,
+    falseErrorA,
+    P
+  });
 
 }());
